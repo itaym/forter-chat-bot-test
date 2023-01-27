@@ -23,8 +23,7 @@ class OpenAiMessaging extends Messaging {
 
         const configuration = new Configuration({
 
-            //I didn't have time to implement dot-env
-            apiKey: "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",
+            apiKey: process.env.OPEN_AI_API_KEY,
         })
         this.openai = new OpenAIApi(configuration);
     }
@@ -34,7 +33,7 @@ class OpenAiMessaging extends Messaging {
 
         this.openai.createCompletion({
             model: selectRandomModel(),
-            prompt: `nasty:${message.text}`,
+            prompt: `${message.text}`,
             max_tokens: 40,
             temperature: 0.4,
         }).then(result => {

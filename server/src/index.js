@@ -1,3 +1,4 @@
+import * as dotenv from 'dotenv'
 import Messaging from './Messaging.js'
 import OpenAiMessaging from './OpenAiMessaging.js'
 import chatManagement from './chatManagement.js'
@@ -5,6 +6,8 @@ import cors from 'cors'
 import express from 'express'
 import httpServer from 'http'
 import { Server } from 'socket.io'
+
+dotenv.config()
 
 const app = express()
 
