@@ -58,7 +58,6 @@ export default class ChatRoom extends LitElement {
                 this.roomsMetadata['chat'] = { users }
         }
 
-
         if (this.roomMessages.length > MAX_MESSAGES) {
             const amount = this.roomMessages.length - MAX_MESSAGES
             this.roomMessages.splice(amount, amount)
@@ -148,7 +147,7 @@ export default class ChatRoom extends LitElement {
                 </div>
                 <div class="room-messages">
                     ${this.roomMessages.map((data) => html`
-                        <div>${data.name}: ${data.text}</div>
+                        <div>${data.name}: ${unsafeHTML(data.text + '')}</div>
                     `)}
                     <div class="scroll-to-view"></div>
                 </div>

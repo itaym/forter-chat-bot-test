@@ -1,50 +1,64 @@
 import { Configuration, OpenAIApi } from 'openai'
 import Messaging from './Messaging.js'
 
-function selectRandomModel() {
-    const models = ['text-davinci-002', 'text-curie-001']
-    const randomIndex = Math.floor(Math.random() * models.length);
-    return models[randomIndex];
-}
-
-function cleanString(str) {
-    const badStart = '?.!@#$%^*()'
-    if (badStart.includes(str.substring(0 , 1))) str = str.substring(1)
-
-    return str.replace(/nasty\:/g, '').
-        replace(/Nasty\:/g, '').
-        replace(/Nasty/g, '').
-        replace(/\n/g, '').trim()
-}
 class OpenAiMessaging extends Messaging {
-
     constructor() {
-        super();
-
-        const configuration = new Configuration({
-
+        super()
+        this.config = new Configuration({
             apiKey: process.env.OPEN_AI_API_KEY,
         })
-        this.openai = new OpenAIApi(configuration);
+        this.openai = new OpenAIApi(this.config)
     }
+
     message(message) {
         super.message(message)
         if (!message.text[0]) return
 
-        this.openai.createCompletion({
-            model: selectRandomModel(),
-            prompt: `${message.text}`,
-            max_tokens: 40,
-            temperature: 0.4,
-        }).then(result => {
-
-            let answer = result['data'].choices[0] ? result['data'].choices[0].text : 'Confusion will be my epitaph'
-            message.name = 'OpenAi'
-            message.text = [cleanString(answer)]
-            this.fireEvent('message', message)
+        this.openai.createCompletion(
+            this.createCompletion(message)
+        ).then(result => {
+            this.handleOpenAiReplay(result, message)
         }).catch(error => {
             this.fireEvent('error', error.message)
         })
+    }
+
+    createPrompt(text) {
+        return `funny: ${text}`
+    }
+
+    createCompletion(message) {
+        const prompt = this.createPrompt(message.text)
+        return {
+            max_tokens: 50,
+            model: 'text-davinci-003',
+            prompt,
+            stop: 'unrelated_text',
+            temperature: 0.3,
+        }
+    }
+
+    handleOpenAiReplay(replay, message) {
+        const answer = this.getAnswer(replay)
+        message.name = 'OpenAi'
+        message.text = [this.cleanString(answer)]
+        this.fireEvent('message', message)
+    }
+
+    getAnswer(result) {
+        return result['data'].choices[0]?.text || 'Confusion will be my epitaph'
+    }
+
+    cleanString(str) {
+        const badStart = '?.!@#$%^*()-_'
+        if (!str) return str
+        while (badStart.includes(str.substring(0 , 1))) {
+            str = str.substring(1)
+        }
+
+        return str.replace(/\\n\\n:/, '')
+            .replace(/\\n/g, '<br/>')
+            .trim()
     }
 }
 
