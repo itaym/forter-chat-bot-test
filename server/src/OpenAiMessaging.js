@@ -19,41 +19,45 @@ class OpenAiMessaging extends Messaging {
         ).then(result => {
             this.handleOpenAiReplay(result, message)
         }).catch(error => {
+            console.log(error)
             this.fireEvent('error', error.message)
         })
     }
 
     createPrompt(text) {
-        return `funny: ${text}`
+        return `hilarious: ${text}`
     }
 
     createCompletion(message) {
         const prompt = this.createPrompt(message.text)
         return {
+            frequency_penalty: 2 -  Math.random() * 4,
             max_tokens: 50,
             model: 'text-davinci-003',
+            presence_penalty: 2 -  Math.random() * 4,
             prompt,
             stop: 'unrelated_text',
-            temperature: 0.3,
+            temperature: Math.random(),
         }
     }
 
     handleOpenAiReplay(replay, message) {
-        const answer = this.getAnswer(replay)
         message.name = 'OpenAi'
-        message.text = [this.cleanString(answer)]
+        message.text = [this.getAnswer(replay)]
         this.fireEvent('message', message)
     }
 
     getAnswer(result) {
-        return result['data'].choices[0]?.text || 'Confusion will be my epitaph'
+        const answer = this.cleanString(result['data'].choices[0]?.text)
+        return answer || 'Confusion will be my epitaph'
     }
 
     cleanString(str) {
         const badStart = '?.!@#$%^*()-_'
-        if (!str) return str
+
         while (badStart.includes(str.substring(0 , 1))) {
             str = str.substring(1)
+            if (!str) break
         }
 
         return str.replace(/\\n\\n:/, '')

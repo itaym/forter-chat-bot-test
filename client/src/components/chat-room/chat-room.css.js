@@ -54,12 +54,14 @@ export default css`
   
   .room-messages {
     overflow-y: scroll;
+    scroll-behavior: smooth;
     width: 100%;
   }
 
   .scroller {
     height: 100%;
     overflow-x: hidden;
+    scroll-behavior: smooth;
   }
   label {
     width: 100%;
@@ -109,6 +111,5 @@ export default css`
   }
 
  .scroll-to-view {
-    scroll-into-view: behaviour-smooth block-center;
   }
 `

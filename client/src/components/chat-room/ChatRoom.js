@@ -1,29 +1,72 @@
 import style from './chat-room.css'
-import { LitElement, html } from 'lit'
+import { LitElement } from 'lit-element'
 import { io } from '../../../socket_io/socket.io.esm.min.js'
-import { unsafeHTML } from 'lit/directives/unsafe-html.js'
+import { handleHistory, unHandleHistory } from '../../utils/handleHistory'
+import template from './chat-room-template'
 
 export default class ChatRoom extends LitElement {
 
+    static styles = [style]
+
     static get properties() {
         return {
-            botMessages: {state: true, default: []},
             inputText: {type: String, default: ''},
-            roomMessages: {state: true, default: []},
-            user_id: {type: String, default: `${Math.round(Math.random() * Number.MAX_SAFE_INTEGER)}`},
             name: {type: String, default: 'user'},
+            roomMessages: {state: true, default: []},
+            roomMetadata: {type: Object, default: { users: {} }},
+            roomName: {type: String, default: 'chat'},
             type: {type: String, default: 'chat'},
+            user_id: {type: String, default: `${Math.round(Math.random() * Number.MAX_SAFE_INTEGER)}`},
         }
     }
 
-    roomsMetadata = {}
-
     constructor() {
         super()
-        this.initProps()
 
-        this.roomsMetadata['chat'] = { users: {} }
-        this.roomsMetadata[this.user_id] = { users: {} }
+        this.initProps()
+    }
+
+    async connectedCallback() {
+        super.connectedCallback()
+
+        this.icon = this.type === 'chat' ?
+            await (await fetch('../../../images/user.svg')).text() :
+            await (await fetch('../../../images/bot.svg')).text()
+
+        this.inputElement = this.shadowRoot.querySelector('#text')
+        this.scrollElement = this.shadowRoot.querySelector('.scroll-to-view')
+
+        handleHistory(this.inputElement)
+
+        this.socket = io(`http://localhost:3000`, {
+            query: {
+                user_id: this['user_id'],
+                type: this.type,
+                room: this['roomName']
+            },
+            extraHeaders: {
+                "Access-Control-Allow-Origin": "*"
+            }
+        })
+
+        this.socket.on('connect', () => {
+            this.sendMessage(this['roomName'], '')
+        })
+
+        this.socket.on('message', this.onMessage)
+
+        this.requestUpdate()
+    }
+
+    disconnectedCallback () {
+        super.disconnectedCallback()
+        this.socket.offAny()
+        this.socket.disconnect()
+        unHandleHistory(this.inputElement)
+    }
+
+    updated(_) {
+        this.scrollElement?.scrollIntoView()
     }
 
     initProps() {
@@ -41,69 +84,30 @@ export default class ChatRoom extends LitElement {
             user_id: this['user_id'],
         })
 
-    onMessage = ({ metadata: { users }, room, ...rest }) => {
+    onMessage = ({ metadata: { users }, ...rest }) => {
         const MAX_MESSAGES = 100
 
         this.name = users[this['user_id']] || this.name
 
-        switch (room) {
-            case this['user_id']:
-                if (rest.text[0])
-                    this.botMessages = [...this.botMessages, rest]
-                this.roomsMetadata[this['user_id']] = { users }
-                break
-            default:
-                if (rest.text[0])
-                    this.roomMessages = [...this.roomMessages, rest]
-                this.roomsMetadata['chat'] = { users }
-        }
+        if (rest.text[0])
+            this.roomMessages = [...this.roomMessages, rest]
+        this.roomMetadata = { users }
 
         if (this.roomMessages.length > MAX_MESSAGES) {
             const amount = this.roomMessages.length - MAX_MESSAGES
             this.roomMessages.splice(amount, amount)
         }
-        if (this.botMessages.length > MAX_MESSAGES) {
-            const amount = this.botMessages.length - MAX_MESSAGES
-            this.botMessages.splice(amount, amount)
-        }
-        this.requestUpdate()
     }
-
-    async connectedCallback() {
-        super.connectedCallback()
-        this.botSvg = await (await fetch('../../../images/bot.svg')).text()
-        this.userSvg = await (await fetch('../../../images/user.svg')).text()
-        this.socket = io(`http://localhost:3000?user_id=${this['user_id']}&type=${this.type}`, {
-            extraHeaders: {
-                "Access-Control-Allow-Origin": "*"
-            }
-        })
-        this.socket.on('connect', () => {
-            this.sendMessage('chat', '')
-            this.sendMessage(this.user_id, '')
-        })
-        this.socket.on('message', this.onMessage)
-    }
-
-    disconnectedCallback () {
-        super.disconnectedCallback()
-        this.socket.offAny()
-        this.socket.disconnect()
-    }
-
-    static styles = [style]
 
     onInputChange ({ target: { value } }) {
         this.inputText = value
     }
 
     onInputKeyPress({ key }) {
-
         if ((key !== 'Enter') || (this.inputText.trim() === '')) return
 
-        this.sendMessage('chat', this.inputText)
-
-        this.inputText = ''
+        this.sendMessage(this['roomName'], this.inputText)
+        this.clearInput()
     }
 
     onNameChange(event) {
@@ -115,55 +119,7 @@ export default class ChatRoom extends LitElement {
     }
 
     render() {
-
-        const icon = this.type === 'chat' ? this.userSvg : this.botSvg
-
-        const { users } = this.type === 'chat' ? this.roomsMetadata['chat'] : this.roomsMetadata[this['user_id']]
-
-        setTimeout(() => {
-            this.shadowRoot.querySelector('.scroll-to-view').scrollIntoView()
-        },200)
-        return html`
-            <div class="room-header">
-                <div class="room-name">
-                    <span style="float: right;">${unsafeHTML(icon)}</span>
-                    ${this.type.toUpperCase()}</div>
-                <label for="name">Username:
-                    <input 
-                        .value="${this.name}"
-                        @input="${this.onNameChange}"
-                        autocomplete="off"
-                        id="name" />
-                </label>
-            </div>
-            <div class="room-container">
-                <div class="room-users">
-                    <div class="scroller">
-                        ${Object.values(users).map((data) => html`
-                            <div>${data}</div>
-        
-                        `)}
-                    </div>
-                </div>
-                <div class="room-messages">
-                    ${this.roomMessages.map((data) => html`
-                        <div>${data.name}: ${unsafeHTML(data.text + '')}</div>
-                    `)}
-                    <div class="scroll-to-view"></div>
-                </div>
-            </div>
-            <div class="room-footer">
-                <label for="name">Say:
-                    <input
-                        .value="${this.inputText}"
-                        @input="${this.onInputChange}"
-                        @keypress="${this.onInputKeyPress}"
-                        autocomplete="off"
-                        id="text" />
-                </label>
-                <button @click="${this.clearInput}">Clear</button>
-            </div>
-        `
+        return template(this)
     }
 }
 

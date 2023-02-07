@@ -1,54 +1,55 @@
 const chatManagement = (io, type, MessageController) => {
-    const sockets = {}
 
     const leaveRoom = (socket, roomName) => {
         const room = io.sockets.adapter.rooms.get(socket.room)
-        if (room)
-            delete room.metadata.users[socket.user_id]
+
+        delete room?.metadata.users[socket.user_id]
 
         socket.leave(roomName)
     }
 
-    const updateRoomUser = (roomName, user_id, userName) => {
-        const room = io.sockets.adapter.rooms.get(roomName)
-        let counter = 0
-        let oldName = userName.split('_')[0]
-        let newName = oldName
+    const getNewUsername = (users, user_id, userName) => {
+        const [oldName] = userName.split('_')
         let checkAgain = true
+        let counter = 0
+        let newName = oldName
 
-        while (checkAgain && userName && Object.entries(room.metadata.users).length) {
-            for (let [key, value] of Object.entries(room.metadata.users)) {
+        while (checkAgain && userName) {
+            checkAgain = false
+            for (let [key, value] of Object.entries(users)) {
                 if (key !== user_id && value === newName) {
                     newName = `${oldName}_${++counter}`
                     checkAgain = true
                     break
                 }
-                checkAgain = false
             }
         }
-        room.metadata.users[user_id] = newName
+        return newName
+    }
+
+    const updateRoomUser = (roomName, user_id, userName) => {
+        const room = io.sockets.adapter.rooms.get(roomName)
+        room.metadata.users[user_id] = getNewUsername(room.metadata.users, user_id, userName)
+
         return room.metadata
     }
 
     const onSocketOpen = (socket) => {
+        if (socket.type !== type) return
+
         socket.user_id = socket.request['_query'].user_id
         socket.type = socket.request['_query'].type
-
-        if (socket.type !== type) return
+        socket.room = socket.request['_query'].room
 
         socket.messaging = new MessageController()
 
-        switch (type) {
-            case 'bot':
-                socket.room  = socket.user_id
-                break
-            default:
-                socket.room  = 'chat'
+        if (type === 'bot') {
+            socket.room = socket.user_id
         }
+
         socket.join([socket.room])
         updateRoomUser(socket.room, socket.user_id, '')
 
-        sockets[socket.user_id] = socket
         socket.on('disconnect', onSocketClose.bind(socket))
         socket.on('message', onMessage.bind(socket))
 
@@ -58,7 +59,6 @@ const chatManagement = (io, type, MessageController) => {
 
     const onSocketClose = function () {
         const socket = this
-        delete sockets[socket.user_id]
 
         socket.offAny()
         socket.messaging.off('error')
@@ -80,7 +80,7 @@ const chatManagement = (io, type, MessageController) => {
 
     const onReplay = function(message) {
         const socket = this
-        io.to(socket.room).emit("message", message)
+        io.to(socket.room).emit('message', message)
     }
 
     const onError = function(error) {
@@ -91,10 +91,10 @@ const chatManagement = (io, type, MessageController) => {
             text: [error],
         }
 
-        io.to(socket.room).emit("message", message)
+        io.to(socket.room).emit('message', message)
     }
 
-    io.of("/").adapter['on']("create-room", (roomName) => {
+    io.of('/').adapter['on']('create-room', (roomName) => {
 
         const room = io.sockets.adapter.rooms.get(roomName)
 

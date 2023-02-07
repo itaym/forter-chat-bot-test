@@ -33,4 +33,3 @@ const io = new Server(http, {
 
 chatManagement(io, 'chat', Messaging)
 chatManagement(io, 'bot', OpenAiMessaging)
-
