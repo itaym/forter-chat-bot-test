@@ -35,11 +35,11 @@ const chatManagement = (io, type, MessageController) => {
     }
 
     const onSocketOpen = (socket) => {
-        if (socket.type !== type) return
-
         socket.user_id = socket.request['_query'].user_id
         socket.type = socket.request['_query'].type
         socket.room = socket.request['_query'].room
+
+        if (socket.type !== type) return
 
         socket.messaging = new MessageController()
 
