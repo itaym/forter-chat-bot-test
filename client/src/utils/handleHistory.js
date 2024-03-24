@@ -10,12 +10,13 @@ export function unHandleHistory(input) {
     input.removeEventListener('keydown', onKeyDown)
 }
 
-function fireEvent(element) {
+function fireEvent(target) {
     let event = new Event('input', {
         bubbles: true,
         cancelable: true,
+        target
     })
-    element.dispatchEvent(event)
+    target.dispatchEvent(event)
 }
 
 function onKeyDown(keyEvent) {

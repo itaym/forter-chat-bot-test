@@ -1,20 +1,19 @@
-import { Configuration, OpenAIApi } from 'openai'
+import OpenAIApi from 'openai'
 import Messaging from './Messaging.js'
 
 class OpenAiMessaging extends Messaging {
     constructor() {
         super()
-        this.config = new Configuration({
+        this.config = {
             apiKey: process.env.OPEN_AI_API_KEY,
-        })
+        }
         this.openai = new OpenAIApi(this.config)
     }
 
     message(message) {
         super.message(message)
         if (!message.text[0]) return
-
-        this.openai.createCompletion(
+        this.openai.chat.completions.create(
             this.createCompletion(message)
         ).then(result => {
             this.handleOpenAiReplay(result, message)
@@ -25,7 +24,7 @@ class OpenAiMessaging extends Messaging {
     }
 
     createPrompt(text) {
-        return `hilarious: ${text}`
+        return { content: `hilarious: ${text}`, role: 'user' }
     }
 
     createCompletion(message) {
@@ -33,11 +32,12 @@ class OpenAiMessaging extends Messaging {
         return {
             frequency_penalty: 2 -  Math.random() * 4,
             max_tokens: 50,
-            model: 'text-davinci-003',
+            model: 'gpt-3.5-turbo-instruct',
             presence_penalty: 2 -  Math.random() * 4,
-            prompt,
+            messages: [prompt],
             stop: 'unrelated_text',
             temperature: Math.random(),
+            stream: false,
         }
     }
 
