@@ -16,11 +16,11 @@ const addToHistory = function(data, addToEnd = true) {
 
     if (addToEnd) {
         this.data.push(data)
-        this.data = this.data.flat()
+        this.data = this.data.flat(Infinity)
         this.index = this.length
     } else {
         this.data.unshift(data)
-        this.data = this.data.flat()
+        this.data = this.data.flat(Infinity)
         this.index = -1
         popOrShift = 'pop'
     }
@@ -102,7 +102,7 @@ class HistoryManager {
                 return this.unshift(data)
             default:
                 this.data[this.index] = data
-                this.data = this.data.flat()
+                this.data = this.data.flat(Infinity)
                 this.index += data.length
         }
         return data

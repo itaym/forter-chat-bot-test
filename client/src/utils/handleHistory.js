@@ -1,12 +1,23 @@
 import HistoryManager from '../HistoryManager'
 
-export function handleHistory(input) {
-    input.historyManager = new HistoryManager()
+export function handleHistory(input, name, fromLocalStorage = false) {
+    input.history = {
+        fromLocalStorage,
+        manager: new HistoryManager(),
+        name,
+    }
     input.addEventListener('keydown', onKeyDown)
+
+    if (!(name && fromLocalStorage)) return input
+
+    const history = JSON.parse(localStorage.getItem(`${name}_history`))
+    if (history) input.history.manager.push(history)
+
+    return input
 }
 
 export function unHandleHistory(input) {
-    delete input.historyManager
+    delete input.history
     input.removeEventListener('keydown', onKeyDown)
 }
 
@@ -21,24 +32,33 @@ function fireEvent(target) {
 
 function onKeyDown(keyEvent) {
     const element = this
+    const { fromLocalStorage, manager, name } = element.history
 
     switch (keyEvent.key) {
         case 'Down':
         case 'ArrowDown':
-            element.value = element.historyManager.forward() || ''
+            element.value = manager.forward() || ''
             fireEvent(this)
-            return
+            return true
         case 'Up':
         case 'ArrowUp':
-            element.value = element.historyManager.back() || ''
+            element.value = manager.back() || ''
             fireEvent(this)
-            return
+            return true
         case 'Enter':
-            if (!element.value) return
-            element.historyManager.push(element.value)
+            if (!element.value) return true
+
+            manager.push(element.value)
+
+            if (name && fromLocalStorage) {
+                localStorage.setItem(
+                    `${name}_history`,
+                    JSON.stringify([...manager])
+                )
+            }
             fireEvent(element)
-            return
+            return true
         default:
-            return
+            return true
     }
 }

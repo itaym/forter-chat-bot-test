@@ -36,7 +36,7 @@ export default class ChatRoom extends LitElement {
         this.inputElement = this.shadowRoot.querySelector('#text')
         this.scrollElement = this.shadowRoot.querySelector('.scroll-to-view')
 
-        handleHistory(this.inputElement)
+        handleHistory(this.inputElement, this['roomName'], true)
 
         this.socket = io(`http://localhost:3000`, {
             query: {
